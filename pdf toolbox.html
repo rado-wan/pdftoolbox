@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Toolbox | Ultimate PDF Toolkit</title>
+    
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: #eef2ff;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --sidebar: #0f172a;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 14px;
+            --shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
+        body { margin: 0; background-color: var(--bg); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar Navigation */
+        nav { width: 280px; background: var(--sidebar); color: white; display: flex; flex-direction: column; padding: 1.5rem; flex-shrink: 0; }
+        .logo { font-size: 1.6rem; font-weight: 800; margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; color: #fff; letter-spacing: -0.5px; }
+        .logo span { color: #818cf8; }
+        
+        .nav-group { margin-bottom: 1.8rem; }
+        .nav-label { font-size: 0.75rem; text-transform: uppercase; color: #475569; font-weight: 700; letter-spacing: 1.2px; margin-bottom: 10px; display: block; padding-left: 10px; }
+        
+        .nav-item {
+            padding: 12px 16px; border-radius: 10px; cursor: pointer;
+            margin-bottom: 4px; display: flex; align-items: center; gap: 12px;
+            transition: 0.2s; color: #94a3b8; font-size: 0.95rem; font-weight: 500;
+        }
+        .nav-item:hover { background: #1e293b; color: #fff; }
+        .nav-item.active { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4); }
+
+        /* Main Content */
+        main { flex: 1; padding: 2.5rem; overflow-y: auto; display: flex; justify-content: center; background: radial-gradient(circle at top right, #f1f5f9, #f8fafc); }
+        .content-card { width: 100%; max-width: 900px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 2.5rem; align-self: start; border: 1px solid var(--border); }
+        
+        .view-header { margin-bottom: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1.5rem; }
+        .view-header h1 { margin: 0; font-size: 1.8rem; font-weight: 800; color: #0f172a; }
+        .view-header p { margin: 8px 0 0; color: var(--text-muted); line-height: 1.5; }
+
+        /* Dropzone Component */
+        .dropzone {
+            border: 2px dashed #cbd5e1; border-radius: var(--radius);
+            padding: 3.5rem 2rem; text-align: center; cursor: pointer;
+            background: #fbfcfe; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; gap: 12px;
+        }
+        .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: var(--primary-light); }
+        .dropzone svg { width: 45px; height: 45px; color: #94a3b8; }
+        .dropzone h3 { margin: 0; font-size: 1.1rem; }
+        .dropzone p { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
+
+        /* File List UI */
+        .file-list { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 10px; }
+        .file-row {
+            display: flex; align-items: center; padding: 10px 16px;
+            background: #fff; border: 1px solid var(--border); border-radius: 12px;
+            transition: 0.2s; gap: 15px; animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .thumb-preview { width: 55px; height: 55px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); background: #f1f5f9; }
+        .file-name { flex: 1; font-size: 0.95rem; font-weight: 600; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* Control Buttons */
+        .row-controls { display: flex; gap: 5px; }
+        .btn-icon {
+            padding: 6px 10px; background: #fff; border: 1px solid var(--border);
+            border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: 0.2s;
+        }
+        .btn-icon:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+        .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-remove { color: var(--danger); border-color: #fee2e2; }
+        .btn-remove:hover { background: #fef2f2; }
+
+        /* Action Buttons */
+        .btn-primary {
+            width: 100%; margin-top: 2rem; padding: 16px; background: var(--primary);
+            color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+        .btn-primary:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Form Layouts */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+        label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; color: #475569; }
+        input, select { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 0.95rem; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+
+        /* Utility */
+        #toast {
+            position: fixed; bottom: 30px; right: 30px; padding: 16px 24px;
+            border-radius: 12px; color: white; font-weight: 600; transform: translateY(150px); 
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999;
+        }
+        #toast.show { transform: translateY(0); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">📄 PDF<span>Toolbox</span></div>
+        
+        <div class="nav-group">
+            <span class="nav-label">Organize</span>
+            <div class="nav-item active" onclick="showView('merger', this)">Merge PDF</div>
+            <div class="nav-item" onclick="showView('splitter', this)">Split PDF</div>
+            <div class="nav-item" onclick="showView('rotate', this)">Rotate PDF</div>
+            <div class="nav-item" onclick="showView('compress', this)">Compress PDF</div>
+        </div>
+
+        <div class="nav-group">
+            <span class="nav-label">Convert</span>
+            <div class="nav-item" onclick="showView('img-to-pdf', this)">Image to PDF</div>
+            <div class="nav-item" onclick="showView('pdf-to-img', this)">PDF to Image</div>
+        </div>
+    </nav>
+
+    <main>
+        <div id="view-merger" class="content-card">
+            <div class="view-header"><h1>Merge PDF</h1><p>Combine multiple PDF files in any order you like.</p></div>
+            <div class="dropzone" id="dz-merger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                <h3>Add PDFs or Paste (Ctrl+V)</h3>
+                <input type="file" id="m-in" class="hidden" multiple accept="application/pdf">
+            </div>
+            <div id="m-list" class="file-list"></div>
+            <button class="btn-primary" id="btn-merge" disabled>Merge Documents</button>
+        </div>
+
+        <div id="view-splitter" class="content-card hidden">
+            <div class="view-header"><h1>Split PDF</h1><p>Extract specific pages or ranges from a PDF.</p></div>
+            <div class="dropzone" id="dz-splitter">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                <h3 id="s-label">Select Source PDF</h3>
+                <input type="file" id="s-in" class="hidden" accept="application/pdf">
+            </div>
+            <div class="form-grid">
+                <div><label>Page Range</label><input type="text" id="s-range" placeholder="e.g. 1-3, 5, 8-10"></div>
+                <div><label>Output Filename</label><input type="text" id="s-filename" value="split_document.pdf"></div>
+            </div>
+            <button class="btn-primary" id="btn-split" disabled>Extract Pages</button>
+        </div>
+
+        <div id="view-rotate" class="content-card hidden">
+            <div class="view-header"><h1>Rotate PDF</h1><p>Fix orientation issues by rotating pages.</p></div>
+            <div class="dropzone" id="dz-rotate">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+                <h3 id="r-label">Upload PDF to Rotate</h3>
+                <input type="file" id="r-in" class="hidden" accept="application/pdf">
+            </div>
+            <div class="form-grid">
+                <div><label>Rotation</label><select id="r-degree"><option value="90">90° Clockwise</option><option value="180">180° Flip</option><option value="270">90° CCW</option></select></div>
+            </div>
+            <button class="btn-primary" id="btn-rotate" disabled>Rotate & Download</button>
+        </div>
+
+        <div id="view-compress" class="content-card hidden">
+            <div class="view-header"><h1>Compress PDF</h1><p>Optimize internal structures to reduce file size.</p></div>
+            <div class="dropzone" id="dz-compress">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14l4-4 4 4"/><path d="M4 20l4-4 4 4"/><line x1="16" y1="4" x2="16" y2="20"/><polyline points="12 8 16 4 20 8"/></svg>
+                <h3 id="c-label">Upload Heavy PDF</h3>
+                <input type="file" id="c-in" class="hidden" accept="application/pdf">
+            </div>
+            <button class="btn-primary" id="btn-compress" disabled>Optimize Size</button>
+        </div>
+
+        <div id="view-img-to-pdf" class="content-card hidden">
+            <div class="view-header"><h1>Image to PDF</h1><p>Convert JPG/PNG to PDF with preview and re-ordering.</p></div>
+            <div class="dropzone" id="dz-i2p">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <h3>Add Images or Paste (Ctrl+V)</h3>
+                <input type="file" id="i2p-in" class="hidden" multiple accept="image/*">
+            </div>
+            <div id="i2p-list" class="file-list"></div>
+            <button class="btn-primary" id="btn-i2p" disabled>Create PDF</button>
+        </div>
+
+        <div id="view-pdf-to-img" class="content-card hidden">
+            <div class="view-header"><h1>PDF to Image</h1><p>Export all PDF pages as PNG images in a ZIP file.</p></div>
+            <div class="dropzone" id="dz-p2i">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                <h3 id="p2i-label">Select PDF Source</h3>
+                <input type="file" id="p2i-in" class="hidden" accept="application/pdf">
+            </div>
+            <button class="btn-primary" id="btn-p2i" disabled>Convert to Images</button>
+        </div>
+    </main>
+
+    <div id="toast"></div>
+
+    <script>
+        const { PDFDocument, degrees } = PDFLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        let mergeFiles = [];
+        let i2pFiles = [];
+        let splitFile, rotateFile, compressFile, p2iFile;
+
+        // --- Core View Switcher ---
+        function showView(viewId, el) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelectorAll('.content-card').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+        }
+
+        function notify(msg, type='success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.background = type==='success'?'var(--success)':'var(--danger)';
+            t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        function save(data, name, type='application/pdf') {
+            const blob = new Blob([data], { type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Global Paste & Drag Support ---
+        window.addEventListener('paste', e => {
+            const files = Array.from(e.clipboardData.files);
+            if (!files.length) return;
+            const activeId = document.querySelector('.content-card:not(.hidden)').id;
+            
+            if (activeId === 'view-merger') handleMergeInput(files);
+            else if (activeId === 'view-img-to-pdf') handleImgInput(files);
+            else {
+                const f = files.find(x => x.type === 'application/pdf');
+                if (f) {
+                    if (activeId === 'view-splitter') { splitFile = f; document.getElementById('s-label').textContent = f.name; document.getElementById('btn-split').disabled = false; }
+                    if (activeId === 'view-rotate') { rotateFile = f; document.getElementById('r-label').textContent = f.name; document.getElementById('btn-rotate').disabled = false; }
+                    if (activeId === 'view-compress') { compressFile = f; document.getElementById('c-label').textContent = f.name; document.getElementById('btn-compress').disabled = false; }
+                    if (activeId === 'view-pdf-to-img') { p2iFile = f; document.getElementById('p2i-label').textContent = f.name; document.getElementById('btn-p2i').disabled = false; }
+                    notify("Pasted PDF document");
+                }
+            }
+        });
+
+        // --- Logic: Merger ---
+        const handleMergeInput = (files) => {
+            Array.from(files).forEach(f => { if(f.type==='application/pdf') mergeFiles.push({id:crypto.randomUUID(), file:f}); });
+            renderMergeList();
+        }
+        function renderMergeList() {
+            const list = document.getElementById('m-list'); list.innerHTML = '';
+            mergeFiles.forEach((f, i) => {
+                const row = document.createElement('div'); row.className = 'file-row';
+                row.innerHTML = `<span class="file-name">${i+1}. ${f.file.name}</span>
+                    <div class="row-controls">
+                        <button class="btn-icon" onclick="moveItem('merge',${i},-1)" ${i===0?'disabled':''}>↑</button>
+                        <button class="btn-icon" onclick="moveItem('merge',${i},1)" ${i===mergeFiles.length-1?'disabled':''}>↓</button>
+                        <button class="btn-icon btn-remove" onclick="removeItem('merge','${f.id}')">✕</button>
+                    </div>`;
+                list.appendChild(row);
+            });
+            document.getElementById('btn-merge').disabled = mergeFiles.length < 2;
+        }
+
+        // --- Logic: Image to PDF ---
+        const handleImgInput = (files) => {
+            Array.from(files).forEach(f => {
+                if(f.type.startsWith('image/')) i2pFiles.push({id:crypto.randomUUID(), file:f, url:URL.createObjectURL(f)});
+            });
+            renderImgList();
+        }
+        function renderImgList() {
+            const list = document.getElementById('i2p-list'); list.innerHTML = '';
+            i2pFiles.forEach((f, i) => {
+                const row = document.createElement('div'); row.className = 'file-row';
+                row.innerHTML = `<img src="${f.url}" class="thumb-preview"> <span class="file-name">${i+1}. ${f.file.name}</span>
+                    <div class="row-controls">
+                        <button class="btn-icon" onclick="moveItem('img',${i},-1)" ${i===0?'disabled':''}>↑</button>
+                        <button class="btn-icon" onclick="moveItem('img',${i},1)" ${i===i2pFiles.length-1?'disabled':''}>↓</button>
+                        <button class="btn-icon btn-remove" onclick="removeItem('img','${f.id}')">✕</button>
+                    </div>`;
+                list.appendChild(row);
+            });
+            document.getElementById('btn-i2p').disabled = i2pFiles.length === 0;
+        }
+
+        // Shared Move/Remove
+        window.moveItem = (type, idx, dir) => {
+            const arr = type === 'merge' ? mergeFiles : i2pFiles;
+            [arr[idx], arr[idx+dir]] = [arr[idx+dir], arr[idx]];
+            type === 'merge' ? renderMergeList() : renderImgList();
+        }
+        window.removeItem = (type, id) => {
+            if(type==='merge') { mergeFiles = mergeFiles.filter(x=>x.id!==id); renderMergeList(); }
+            else { 
+                const f = i2pFiles.find(x=>x.id===id);
+                if(f) URL.revokeObjectURL(f.url);
+                i2pFiles = i2pFiles.filter(x=>x.id!==id); renderImgList(); 
+            }
+        }
+
+        // --- Action Handlers ---
+
+        document.getElementById('btn-merge').onclick = async () => {
+            const btn = document.getElementById('btn-merge'); btn.textContent="Processing...";
+            const out = await PDFDocument.create();
+            for(let f of mergeFiles) {
+                const doc = await PDFDocument.load(await f.file.arrayBuffer());
+                const pages = await out.copyPages(doc, doc.getPageIndices());
+                pages.forEach(p => out.addPage(p));
+            }
+            save(await out.save(), 'merged_toolbox.pdf');
+            btn.textContent="Merge Documents"; notify("Merge Complete!");
+        };
+
+        document.getElementById('btn-i2p').onclick = async () => {
+            const btn = document.getElementById('btn-i2p'); btn.textContent="Converting...";
+            const out = await PDFDocument.create();
+            for(let f of i2pFiles) {
+                const bytes = await f.file.arrayBuffer();
+                const img = f.file.type.includes('png') ? await out.embedPng(bytes) : await out.embedJpg(bytes);
+                const page = out.addPage([img.width, img.height]);
+                page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+            }
+            save(await out.save(), 'image_bundle.pdf');
+            btn.textContent="Create PDF"; notify("Conversion Complete!");
+        };
+
+        document.getElementById('btn-compress').onclick = async () => {
+            const doc = await PDFDocument.load(await compressFile.arrayBuffer());
+            const bytes = await doc.save({ useObjectStreams: true });
+            save(bytes, 'compressed_' + compressFile.name);
+            notify("Compression Optimized!");
+        };
+
+        document.getElementById('btn-rotate').onclick = async () => {
+            const doc = await PDFDocument.load(await rotateFile.arrayBuffer());
+            const deg = parseInt(document.getElementById('r-degree').value);
+            doc.getPages().forEach(p => p.setRotation(degrees(p.getRotation().angle + deg)));
+            save(await doc.save(), 'rotated_' + rotateFile.name);
+            notify("Rotation Applied!");
+        };
+
+        document.getElementById('btn-split').onclick = async () => {
+            const src = await PDFDocument.load(await splitFile.arrayBuffer());
+            const out = await PDFDocument.create();
+            const range = document.getElementById('s-range').value;
+            const pages = [];
+            range.split(',').forEach(p => {
+                if(p.includes('-')) {
+                    const [s,e] = p.split('-').map(Number);
+                    for(let i=s; i<=e; i++) pages.push(i-1);
+                } else pages.push(Number(p)-1);
+            });
+            const copied = await out.copyPages(src, pages.filter(i => i >= 0 && i < src.getPageCount()));
+            copied.forEach(p => out.addPage(p));
+            save(await out.save(), document.getElementById('s-filename').value);
+            notify("Split Success!");
+        };
+
+        document.getElementById('btn-p2i').onclick = async () => {
+            const btn = document.getElementById('btn-p2i'); btn.textContent="Processing...";
+            const zip = new JSZip();
+            const pdf = await pdfjsLib.getDocument(await p2iFile.arrayBuffer()).promise;
+            for(let i=1; i<=pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({scale:2});
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height; canvas.width = viewport.width;
+                await page.render({canvasContext:ctx, viewport}).promise;
+                zip.file(`page-${i}.png`, canvas.toDataURL('image/png').split(',')[1], {base64:true});
+            }
+            save(await zip.generateAsync({type:'blob'}), 'pdf_images.zip', 'application/zip');
+            btn.textContent="Convert to Images"; notify("ZIP Exported!");
+        };
+
+        // --- Event Binding ---
+        ['dz-merger', 'dz-splitter', 'dz-rotate', 'dz-compress', 'dz-i2p', 'dz-p2i'].forEach(id => {
+            const dz = document.getElementById(id);
+            const input = dz.querySelector('input');
+            dz.onclick = () => input.click();
+            dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('dragover'); };
+            dz.ondragleave = () => dz.classList.remove('dragover');
+            dz.ondrop = (e) => {
+                e.preventDefault(); dz.classList.remove('dragover');
+                const activeId = document.querySelector('.content-card:not(.hidden)').id;
+                if(activeId === 'view-merger') handleMergeInput(e.dataTransfer.files);
+                else if(activeId === 'view-img-to-pdf') handleImgInput(e.dataTransfer.files);
+                else {
+                    const f = e.dataTransfer.files[0];
+                    if (f && f.type === 'application/pdf') {
+                        if (activeId === 'view-splitter') { splitFile = f; document.getElementById('s-label').textContent = f.name; document.getElementById('btn-split').disabled = false; }
+                        if (activeId === 'view-rotate') { rotateFile = f; document.getElementById('r-label').textContent = f.name; document.getElementById('btn-rotate').disabled = false; }
+                        if (activeId === 'view-compress') { compressFile = f; document.getElementById('c-label').textContent = f.name; document.getElementById('btn-compress').disabled = false; }
+                        if (activeId === 'view-pdf-to-img') { p2iFile = f; document.getElementById('p2i-label').textContent = f.name; document.getElementById('btn-p2i').disabled = false; }
+                    }
+                }
+            };
+        });
+
+        document.getElementById('m-in').onchange = (e) => handleMergeInput(e.target.files);
+        document.getElementById('i2p-in').onchange = (e) => handleImgInput(e.target.files);
+        document.getElementById('s-in').onchange = (e) => { splitFile = e.target.files[0]; document.getElementById('s-label').textContent = splitFile.name; document.getElementById('btn-split').disabled = false; };
+        document.getElementById('r-in').onchange = (e) => { rotateFile = e.target.files[0]; document.getElementById('r-label').textContent = rotateFile.name; document.getElementById('btn-rotate').disabled = false; };
+        document.getElementById('c-in').onchange = (e) => { compressFile = e.target.files[0]; document.getElementById('c-label').textContent = compressFile.name; document.getElementById('btn-compress').disabled = false; };
+        document.getElementById('p2i-in').onchange = (e) => { p2iFile = e.target.files[0]; document.getElementById('p2i-label').textContent = p2iFile.name; document.getElementById('btn-p2i').disabled = false; };
+    </script>
+</body>
+</html>
